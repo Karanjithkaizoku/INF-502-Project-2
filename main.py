@@ -572,8 +572,6 @@ def main():
             create_and_store_visual_representation_data(repositories)
 
         elif choice == "7":
-            import matplotlib.pyplot as plt
-            import seaborn as sns
             # Calculate correlation for user data
             users_data = {
                 "Following": [],
