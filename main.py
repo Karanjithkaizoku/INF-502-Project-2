@@ -596,14 +596,18 @@ def main():
                     users_data["Following"].append(user.following_count)
                     users_data["Followers"].append(user.followers_count)
                     users_data["PullRequests"].append(user.pull_requests_count)
-                    users_data["ContributionsLastYear"].append(
-                        user.contributions_last_year
-                    )
+                    users_data["ContributionsLastYear"].append(user.contributions_last_year)
 
             users_df = pd.DataFrame(users_data)
             users_df = users_df.dropna().astype(float)
-
-            correlation_matrix_users = users_df.corr()
+        
+            if users_df.std().min() == 0:
+                print("Error: Standard deviation is zero in at least one column.")
+                
+            else:
+                correlation_matrix_users = users_df.corr()
+                plt.figure()
+                sns.heatmap(correlation_matrix_users)
 
             print("Correlation matrix for user data:")
             print(correlation_matrix_users)
