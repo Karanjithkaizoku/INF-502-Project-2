@@ -301,25 +301,50 @@ def collect_data_for_repository(owner, repo_name, users, date_of_collection=None
 
 def create_and_store_visual_representation_data(repositories):
     # Line graph: Total number of pull requests per day
-    pull_requests_data = {"Date": [], "Number": []}
+    pull_requests_data = {
+        "Date": [],
+        "Number": [],
+        "State": [],
+        "Changed Files": [],
+        "Commits": [],
+    }
 
     for repo in repositories:
         for pr in repo.pull_requests:
             pull_requests_data["Date"].append(pr.created_at)
             pull_requests_data["Number"].append(pr.number)
+            pull_requests_data["State"].append(pr.state)
+            pull_requests_data["Changed Files"].append(pr.changed_files)
+
+            # Add "Commits" information if available
+            if pr.commits is not None:
+                pull_requests_data["Commits"].append(pr.commits)
+            else:
+                pull_requests_data["Commits"].append(
+                    0
+                )  # You can replace 0 with another appropriate default value
+
+    if not pull_requests_data["Number"]:
+        print("No pull request information found. Exiting.")
+        return
 
     pull_requests_df = pd.DataFrame(pull_requests_data)
     pull_requests_df["Date"] = pd.to_datetime(pull_requests_df["Date"])
 
     plt.figure(figsize=(10, 6))
-    pull_requests_df.groupby(pull_requests_df["Date"].dt.date)["Number"].count().plot(
-        kind="line"
-    )
-    plt.title("Total Number of Pull Requests per Day")
+    for state in pull_requests_df["State"].unique():
+        state_df = pull_requests_df[pull_requests_df["State"] == state]
+        plt.plot(
+            state_df["Date"], state_df["Number"], marker="o", linestyle="-", label=state
+        )
+
+    plt.title("Total Number of Pull Requests Over Time, Separated by State")
     plt.xlabel("Date")
     plt.ylabel("Number of Pull Requests")
+    plt.xticks(rotation=45)
+    plt.legend()
+    plt.tight_layout()
     plt.show()
-
     # Line graph: Number of open and closed pull requests per day
     open_vs_closed_pull_requests_per_day = pull_requests_df.groupby(
         [pull_requests_df["Date"].dt.date]
@@ -482,9 +507,9 @@ def main():
 
                 # Collect data for the specified repository
                 repo = collect_data_for_repository(owner, repo_name, users)
-                repositories.append(repo)
-
-                print("Data collection complete.")
+                if repo is not None:  # Check if the repository is not None
+                    repositories.append(repo)
+                    print("Data collection complete.")
 
                 more_repositories = input(
                     "Do you want to enter more repositories? (yes/no): "
@@ -495,8 +520,8 @@ def main():
         elif choice == "2":
             print("All collected repositories:")
             for i, repo in enumerate(repositories, 1):
-                print(f"{i}. {repo.owner}/{repo.name}")
-
+                if repo is not None:
+                    print(f"{i}. {repo.owner}/{repo.name}")
             while True:
                 try:
                     repo_index = int(input("Enter the index of the repository: ")) - 1
@@ -513,9 +538,7 @@ def main():
                 repo_submenu_choice = input("Enter your choice: ")
 
                 if repo_submenu_choice == "1":
-                    # Show pull requests for the selected repository
-                    for pr in repositories[repo_index].pull_requests:
-                        print(pr)
+                    show_pull_requests(repositories)
 
                 elif repo_submenu_choice == "2":
                     # Show summary for the selected repository
@@ -596,18 +619,14 @@ def main():
                     users_data["Following"].append(user.following_count)
                     users_data["Followers"].append(user.followers_count)
                     users_data["PullRequests"].append(user.pull_requests_count)
-                    users_data["ContributionsLastYear"].append(user.contributions_last_year)
+                    users_data["ContributionsLastYear"].append(
+                        user.contributions_last_year
+                    )
 
             users_df = pd.DataFrame(users_data)
             users_df = users_df.dropna().astype(float)
-        
-            if users_df.std().min() == 0:
-                print("Error: Standard deviation is zero in at least one column.")
-                
-            else:
-                correlation_matrix_users = users_df.corr()
-                plt.figure()
-                sns.heatmap(correlation_matrix_users)
+
+            correlation_matrix_users = users_df.corr()
 
             print("Correlation matrix for user data:")
             print(correlation_matrix_users)
